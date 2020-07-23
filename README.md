@@ -19,6 +19,13 @@ worker_processes        auto;
 worker_processes_factor 3;
 ```
 
+- the number of worker processes is __10__ if the number of cpu threads is 4.
+
+```nginx
+worker_processes        auto;
+worker_processes_factor 3 spare=2;
+```
+
 ## Install
 
 - use nginx configure option

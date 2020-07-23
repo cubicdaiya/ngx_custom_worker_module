@@ -5,8 +5,7 @@
 static char *ngx_worker_process_factor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static ngx_command_t ngx_core_custom_worker_commands[] = {
-
-    {ngx_string("worker_processes_factor"), NGX_MAIN_CONF | NGX_DIRECT_CONF | NGX_CONF_TAKE1, ngx_worker_process_factor,
+    {ngx_string("worker_processes_factor"), NGX_MAIN_CONF | NGX_DIRECT_CONF | NGX_CONF_TAKE12, ngx_worker_process_factor,
      0, 0, NULL},
 
     ngx_null_command};
@@ -29,7 +28,7 @@ ngx_module_t ngx_core_custom_worker_module = {NGX_MODULE_V1,
 static char *ngx_worker_process_factor(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
   ngx_str_t *value;
-  ngx_int_t factor;
+  ngx_int_t factor, spare;
   ngx_core_conf_t *ccf;
 
   ccf = (ngx_core_conf_t *)ngx_get_conf(cf->cycle->conf_ctx, ngx_core_module);
@@ -42,10 +41,34 @@ static char *ngx_worker_process_factor(ngx_conf_t *cf, ngx_command_t *cmd, void 
   factor = ngx_atoi(value[1].data, value[1].len);
 
   if (factor < 1) {
-    return "worker_processes_factor shoud be positive number";
+    return "worker_processes_factor arguments should be positive number";
   }
 
   ccf->worker_processes = ccf->worker_processes * factor;
+
+  if (cf->args->nelts < 3) {
+    return NGX_CONF_OK;
+  }
+
+  if (ngx_strncmp(value[2].data, "spare=", 6) != 0) {
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "invalid parameter \"%V\"", &value[2]);
+    return NGX_CONF_ERROR;
+  }
+
+  spare = ngx_atoi(value[2].data + 6, value[2].len - 6);
+
+  if (spare < 1) {
+    return "worker_processes_factor arguments should be positive number";
+  }
+
+  if (ccf->worker_processes - spare < 1) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "worker_processes is smaller than ngx_worker_process_spare. worker_processes is set to be 1");
+    spare = ccf->worker_processes - 1;
+  }
+
+  ccf->worker_processes = ccf->worker_processes - spare;
 
   return NGX_CONF_OK;
 }
